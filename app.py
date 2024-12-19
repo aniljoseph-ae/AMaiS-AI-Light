@@ -118,7 +118,86 @@ class EngineInspectionApp:
                     st.write(report)
 
 # ------------------------------ App 2: Interactive Chat Class ------------------------------ #
+
 class InteractiveChatApp:
+    """
+    InteractiveChatApp provides LLM-based chat with report generation capabilities.
+    It supports audio playback, PDF, and DOCX export for the generated responses.
+    """
+
+    def __init__(self):
+        self.vectorstore = self.setup_vectorstore()
+        self.chain = self.create_chain()
+
+    def setup_vectorstore(self):
+        """
+        Setup the FAISS vector store for conversational retrieval using HuggingFace embeddings.
+        This will be loaded lazily from session_state to avoid redundant loading.
+        """
+        if "vectorstore" not in st.session_state:
+            # Load the FAISS index from the file
+            with open("chatLLM_vector_store/chatLLM_faiss_index.pkl", "rb") as f:
+                faiss_index = pickle.load(f)
+
+            # Initialize embeddings
+            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
+
+            # Create FAISS vector store
+            st.session_state.vectorstore = FAISS(embedding_function=embeddings, index=faiss_index)
+
+        return st.session_state.vectorstore
+
+    def create_chain(self):
+        """
+        Initialize the conversational retrieval chain for the chatbot.
+        """
+        groq_api_key = st.secrets["groq"]["api_key"]
+        llm = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=groq_api_key)
+        retriever = self.vectorstore.as_retriever()
+        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+        return ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever, chain_type="stuff", memory=memory)
+
+    def export_response(self, response):
+        """
+        Export the response to audio, PDF, and DOCX formats.
+        """
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("▶️ Play Audio"):
+                audio_path = "response.mp3"
+                gTTS(response).save(audio_path)
+                st.audio(audio_path)
+
+        with col2:
+            if st.button("📄 Generate PDF"):
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=12)
+                pdf.multi_cell(0, 10, response)
+                pdf.output("response.pdf")
+                st.download_button("Download PDF", "response.pdf")
+    
+        with col3:
+            if st.button("📄 Generate DOCX"):
+                doc = Document()
+                doc.add_paragraph(response)
+                doc.save("response.docx")
+                st.download_button("Download DOCX", "response.docx")
+
+    def run(self):
+        """
+        Streamlit application for interactive chat and comprehensive report generation.
+        """
+        st.title("Interactive Chat with Report Export 📜")
+        user_input = st.text_area("Enter your query:")
+        if user_input:
+            response = self.chain.run(question=user_input)
+            st.subheader("Response:")
+            st.write(response)
+            self.export_response(response)
+
+'''class InteractiveChatApp:
     """
     InteractiveChatApp provides LLM-based chat with report generation capabilities.
     It supports audio playback, PDF, and DOCX export for the generated responses.
@@ -189,6 +268,7 @@ class InteractiveChatApp:
             st.subheader("Response:")
             st.write(response)
             self.export_response(response)
+    '''
 
 
 # ------------------------------ Main Entry Point ------------------------------ #
