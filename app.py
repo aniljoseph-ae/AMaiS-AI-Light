@@ -6,7 +6,6 @@ import pickle
 import cv2
 from PIL import Image
 from ultralytics import YOLO
-# from langchain.vectorstores import Chroma
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -25,7 +24,10 @@ class EngineInspectionApp:
     def __init__(self):
         # Initialize YOLO model for defect detection
         self.model_path = 'yolov8n_model/best.pt'  # Path to YOLO model weights
-        self.model = YOLO(self.model_path)
+        if os.path.exists(self.model_path):
+            self.model = YOLO(self.model_path)
+        else:
+            st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
 
         # Initialize Groq LLM (Llama model)
         self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
@@ -98,7 +100,7 @@ class EngineInspectionApp:
         """
         Streamlit application to upload an image, detect defects, and generate a comprehensive report.
         """
-        st.title("Engine Component Inspection System 🛠️")
+        st.title("Engine Component Inspection System \U0001F527")
         uploaded_file = st.file_uploader("Upload an image (jpg/png):", type=["jpg", "png", "jpeg"])
         if uploaded_file:
             image = Image.open(uploaded_file)
@@ -136,15 +138,15 @@ class InteractiveChatApp:
         This will be loaded lazily from session_state to avoid redundant loading.
         """
         if "vectorstore" not in st.session_state:
-            # Load the FAISS index from the file
-            with open("chatLLM_vector_store/chatLLM_faiss_index.pkl", "rb") as f:
-                faiss_index = pickle.load(f)
+            try:
+                with open("chatLLM_vector_store/chatLLM_faiss_index.pkl", "rb") as f:
+                    faiss_index = pickle.load(f)
 
-            # Initialize embeddings
-            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
-
-            # Create FAISS vector store
-            st.session_state.vectorstore = FAISS(embedding_function=embeddings, index=faiss_index)
+                embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
+                st.session_state.vectorstore = FAISS(embedding_function=embeddings, index=faiss_index)
+            except Exception as e:
+                st.error(f"Error loading vector store: {str(e)}")
+                return None
 
         return st.session_state.vectorstore
 
@@ -152,12 +154,16 @@ class InteractiveChatApp:
         """
         Initialize the conversational retrieval chain for the chatbot.
         """
-        groq_api_key = st.secrets["groq"]["api_key"]
-        llm = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=groq_api_key)
-        retriever = self.vectorstore.as_retriever()
-        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        try:
+            groq_api_key = st.secrets["groq"]["api_key"]
+            llm = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=groq_api_key)
+            retriever = self.vectorstore.as_retriever()
+            memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
-        return ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever, chain_type="stuff", memory=memory)
+            return ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever, chain_type="stuff", memory=memory)
+        except Exception as e:
+            st.error(f"Error creating LLM chain: {str(e)}")
+            return None
 
     def export_response(self, response):
         """
@@ -165,22 +171,23 @@ class InteractiveChatApp:
         """
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("▶️ Play Audio"):
+            if st.button("\u25B6\uFE0F Play Audio"):
                 audio_path = "response.mp3"
                 gTTS(response).save(audio_path)
                 st.audio(audio_path)
 
         with col2:
-            if st.button("📄 Generate PDF"):
+            if st.button("\U0001F4C4 Generate PDF"):
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", size=12)
                 pdf.multi_cell(0, 10, response)
                 pdf.output("response.pdf")
                 st.download_button("Download PDF", "response.pdf")
-    
+
         with col3:
-            if st.button("📄 Generate DOCX"):
+            if st.button("\U0001F4C4 Generate DOCX"):
+                from docx import Document
                 doc = Document()
                 doc.add_paragraph(response)
                 doc.save("response.docx")
@@ -190,7 +197,7 @@ class InteractiveChatApp:
         """
         Streamlit application for interactive chat and comprehensive report generation.
         """
-        st.title("Interactive Chat with Report Export 📜")
+        st.title("Interactive Chat with Report Export \U0001F4DC")
         user_input = st.text_area("Enter your query:")
         if user_input:
             response = self.chain.run(question=user_input)
