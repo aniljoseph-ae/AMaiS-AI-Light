@@ -1,5 +1,5 @@
 langchain-core==0.2.26
-langchain-community==0.0.16
+langchain-community>=0.2.0
 langchain-groq==0.1.9
 streamlit==1.38.0
 opencv-python-headless==4.8.1.78
