@@ -6,7 +6,9 @@ from ultralytics import YOLO
 import streamlit as st
 
 from langchain_community.vectorstores import Chroma, FAISS
-from langchain_core.memory import ConversationBufferMemory
+# from langchain_core.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory
+
 from langchain_core.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.embeddings import HuggingFaceEmbeddings
