@@ -9,11 +9,10 @@ Pillow==10.0.0
 ultralytics==8.0.196
 chromadb==0.4.22
 sentence-transformers>=2.6.0
-faiss-cpu==1.7.4
+faiss-cpu==1.9.0.post1
 python-dotenv==1.0.0
 torch>=2.0.0
 transformers>=4.36.0
 fpdf==1.7.2
 gtts
 python-docx
-faiss==1.7.4
