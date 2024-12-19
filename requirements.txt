@@ -1,7 +1,7 @@
 langchain-core==0.3.27
 langchain-community==0.3.13
 langchain-groq>=0.2.2
-langchain-huggingface>=0.1.52
+langchain-huggingface>=0.1.0
 streamlit==1.38.0
 opencv-python-headless==4.8.1.78
 numpy==1.24.3
