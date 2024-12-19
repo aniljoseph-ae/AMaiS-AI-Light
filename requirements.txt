@@ -13,6 +13,6 @@ faiss-cpu==1.7.4
 python-dotenv==1.0.0
 torch>=2.0.0
 transformers>=4.36.0
-fpdf
+fpdf==1.7.2
 gtts
 python-docx
