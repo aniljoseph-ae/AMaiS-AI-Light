@@ -5,16 +5,16 @@ from PIL import Image
 from ultralytics import YOLO
 import streamlit as st
 
-from langchain.vectorstores import Chroma, FAISS
-from langchain.memory import ConversationBufferMemory
+from langchain_community.vectorstores import Chroma, FAISS
+from langchain_core.memory import ConversationBufferMemory
+from langchain_core.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.chat_models import ChatGroq
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq  # Updated import path
 
-# ------------------------------ App 1: Engine Inspection Class ------------------------------ #
+# Rest of the code remains the same, just updating the import paths
 class EngineInspectionApp:
     def __init__(self):
-        # Initialize model path from environment variable or default
         self.model_path = os.getenv('YOLO_MODEL_PATH', 'yolov8n_model/best.pt')
         try:
             self.model = YOLO(self.model_path)
@@ -32,6 +32,7 @@ class EngineInspectionApp:
             st.error(f"Error initializing Groq client: {str(e)}")
             return
 
+    # Rest of the EngineInspectionApp class remains the same
     def preprocess_image(self, image):
         try:
             if isinstance(image, Image.Image):
@@ -111,7 +112,6 @@ class EngineInspectionApp:
             except Exception as e:
                 st.error(f"Error processing image: {str(e)}")
 
-# ------------------------------ App 2: Interactive Chat Class ------------------------------ #
 class InteractiveChatApp:
     def __init__(self):
         try:
@@ -179,15 +179,12 @@ class InteractiveChatApp:
             except Exception as e:
                 st.error(f"Error processing query: {str(e)}")
 
-# ------------------------------ Main Entry Point ------------------------------ #
 def main():
     st.set_page_config(page_title="Defect Detection and Chat App", layout="wide")
     
-    # Initialize session state
     if 'app_selection' not in st.session_state:
         st.session_state['app_selection'] = "Engine Inspection"
 
-    # Sidebar
     st.session_state['app_selection'] = st.sidebar.selectbox(
         "Choose an Application:",
         ["Engine Inspection", "Interactive Chat"],
