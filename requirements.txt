@@ -4,11 +4,13 @@ numpy==1.24.3
 Pillow==10.0.0
 ultralytics==8.0.196
 langchain-community==0.0.16
-langchain-core==0.1.17
-langchain-groq==0.1.9
+langchain-core>=0.1.17
+langchain-groq>=0.1.9
 chromadb==0.4.22
 sentence-transformers==2.2.2
 faiss-cpu==1.7.4
 python-dotenv==1.0.0
 torch>=2.0.0
 transformers>=4.36.0
+
+
