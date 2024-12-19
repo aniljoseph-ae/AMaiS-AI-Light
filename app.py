@@ -6,7 +6,8 @@ import pickle
 import cv2
 from PIL import Image
 from ultralytics import YOLO
-from langchain.vectorstores import Chroma
+# from langchain.vectorstores import Chroma
+from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_huggingface import HuggingFaceEmbeddings
