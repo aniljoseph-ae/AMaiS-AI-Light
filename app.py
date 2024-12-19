@@ -6,7 +6,9 @@ import pickle
 import cv2
 from PIL import Image
 from ultralytics import YOLO
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
+from langchain.docstore.memory import InMemoryDocstore
+from faiss import IndexFlatL2
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -123,37 +125,27 @@ class EngineInspectionApp:
 # ------------------------------ App 2: Interactive Chat Class ------------------------------ #
 
 class InteractiveChatApp:
-    """
-    InteractiveChatApp provides LLM-based chat with report generation capabilities.
-    It supports audio playback, PDF, and DOCX export for the generated responses.
-    """
-
     def __init__(self):
         self.vectorstore = self.setup_vectorstore()
         self.chain = self.create_chain()
 
     def setup_vectorstore(self):
-        """
-        Setup the FAISS vector store for conversational retrieval using HuggingFace embeddings.
-        This will be loaded lazily from session_state to avoid redundant loading.
-        """
-        if "vectorstore" not in st.session_state:
-            try:
-                with open("chatLLM_vector_store/chatLLM_faiss_index.pkl", "rb") as f:
-                    faiss_index = pickle.load(f)
+        try:
+            index = IndexFlatL2(384)
+            docstore = InMemoryDocstore({})
+            index_to_docstore_id = {}
+            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
 
-                embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
-                st.session_state.vectorstore = FAISS(embedding_function=embeddings, index=faiss_index)
-            except Exception as e:
-                st.error(f"Error loading vector store: {str(e)}")
-                return None
-
-        return st.session_state.vectorstore
+            vectorstore = FAISS(embedding_function=embeddings,
+                                index=index,
+                                docstore=docstore,
+                                index_to_docstore_id=index_to_docstore_id)
+            return vectorstore
+        except Exception as e:
+            st.error(f"Error initializing FAISS vector store: {str(e)}")
+            return None
 
     def create_chain(self):
-        """
-        Initialize the conversational retrieval chain for the chatbot.
-        """
         try:
             groq_api_key = st.secrets["groq"]["api_key"]
             llm = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=groq_api_key)
