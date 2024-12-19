@@ -16,3 +16,4 @@ transformers>=4.36.0
 fpdf==1.7.2
 gtts
 python-docx
+faiss==1.7.4
