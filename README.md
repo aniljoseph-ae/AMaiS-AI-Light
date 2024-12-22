@@ -1,6 +1,3 @@
-Here's a professional and technical README file for your project:
-
----
 
 # **Aircraft Maintenance System AI (AMaiS AI)**
 
