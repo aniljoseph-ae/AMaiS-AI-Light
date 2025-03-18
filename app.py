@@ -16,42 +16,34 @@ import streamlit as st
 from io import BytesIO
 from docx import Document
 import torch.serialization
-from torch.nn.modules.container import Sequential  # Added for safe globals
+from torch.nn.modules.container import Sequential
+from ultralytics.nn.modules.conv import Conv
+from ultralytics.nn.tasks import DetectionModel
 
 # ------------------------------ App 1: Engine Inspection Class ------------------------------ #
 class EngineInspectionApp:
-    """
-    EngineInspectionApp performs defect detection on gas turbine blades using YOLOv8.
-    It also generates a detailed inspection report for identified defects using the Groq LLM.
-    """
-
     def __init__(self):
-        # Initialize YOLO model for defect detection
         self.model_path = 'yolov8n_model/best.pt'
         if os.path.exists(self.model_path):
-            from ultralytics.nn.tasks import DetectionModel
-            # Allowlist both DetectionModel and Sequential
-            torch.serialization.add_safe_globals([DetectionModel, Sequential])
+            torch.serialization.add_safe_globals([DetectionModel, Sequential, Conv])
             try:
                 self.model = YOLO(self.model_path)
+                st.success("YOLO model loaded successfully.")
+                st.write("Model classes:", self.model.names)  # Debug: Show class names
             except Exception as e:
                 st.error(f"Failed to load YOLO model: {str(e)}")
                 self.model = None
         else:
-            st.error(f"YOLO model weights not found at '{self.model_path}'. Please upload or place the file.")
+            st.error(f"YOLO model weights not found at '{self.model_path}'. Place it in the same directory as app.py.")
             self.model = None
 
-        # Initialize Groq LLM
         try:
             self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
         except KeyError:
-            st.error("Groq API key not found in Streamlit secrets. Please configure it in secrets.toml.")
+            st.error("Groq API key not found in Streamlit secrets. Add it to secrets.toml.")
             self.groq_client = None
 
     def preprocess_image(self, image):
-        """
-        Preprocess the image to fit the YOLO model input dimensions (640x640).
-        """
         try:
             if isinstance(image, Image.Image):
                 image = np.array(image)
@@ -78,10 +70,8 @@ class EngineInspectionApp:
             return None
 
     def detect_defects(self, image):
-        """
-        Detect defects using YOLO and return an annotated image and list of detected defects.
-        """
         if self.model is None or image is None:
+            st.warning("Model or image not available for defect detection.")
             return image, []
         
         try:
@@ -94,12 +84,13 @@ class EngineInspectionApp:
                 for box in boxes:
                     cls = int(box.cls[0])
                     conf = float(box.conf[0])
-                    label = f"{self.model.names[cls]} {conf:.2f}"
-                    labels.append((self.model.names[cls], conf))
-
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    cv2.rectangle(annotated_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(annotated_image, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    st.write(f"Debug: Detected {self.model.names[cls]} with confidence {conf:.2f}")  # Debug
+                    if conf >= 0.1:  # Lowered threshold
+                        label = f"{self.model.names[cls]} {conf:.2f}"
+                        labels.append((self.model.names[cls], conf))
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        cv2.rectangle(annotated_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(annotated_image, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             return annotated_image, labels
         except Exception as e:
@@ -107,9 +98,6 @@ class EngineInspectionApp:
             return image, []
 
     def generate_report(self, defects):
-        """
-        Generate an activation report for detected defects using Groq LLM.
-        """
         if self.groq_client is None:
             return "Error: Groq LLM not initialized due to missing API key."
         
@@ -130,9 +118,6 @@ class EngineInspectionApp:
             return "Error generating the report."
 
     def run(self):
-        """
-        Streamlit application to upload an image, detect defects, and generate a comprehensive report.
-        """
         st.title("Engine Component Inspection System \U0001F527")
         st.write("Upload an image to detect defects in gas turbine blades.")
         
@@ -143,6 +128,7 @@ class EngineInspectionApp:
 
             preprocessed_image = self.preprocess_image(image)
             if preprocessed_image is not None:
+                st.image(preprocessed_image, caption="Preprocessed Image", use_column_width=True)  # Debug
                 annotated_image, defects = self.detect_defects(preprocessed_image)
                 st.image(annotated_image, caption="Detected Defects", use_column_width=True)
 
@@ -171,12 +157,7 @@ class InteractiveChatApp:
             docstore = InMemoryDocstore({})
             index_to_docstore_id = {}
             embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
-
-            vectorstore = FAISS(embedding_function=embeddings,
-                                index=index,
-                                docstore=docstore,
-                                index_to_docstore_id=index_to_docstore_id)
-            return vectorstore
+            return FAISS(embedding_function=embeddings, index=index, docstore=docstore, index_to_docstore_id=index_to_docstore_id)
         except Exception as e:
             st.error(f"Error initializing FAISS vector store: {str(e)}")
             return None
@@ -187,16 +168,12 @@ class InteractiveChatApp:
             llm = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=groq_api_key)
             retriever = self.vectorstore.as_retriever()
             memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
             return ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever, chain_type="stuff", memory=memory)
         except Exception as e:
             st.error(f"Error creating LLM chain: {str(e)}")
             return None
 
     def export_response(self, response):
-        """
-        Export the response to audio, PDF, and DOCX formats.
-        """
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("\u25B6\uFE0F Play Audio", key="audio"):
@@ -204,7 +181,6 @@ class InteractiveChatApp:
                 gTTS(response).save(audio_buffer)
                 audio_buffer.seek(0)
                 st.audio(audio_buffer, format="audio/mp3")
-
         with col2:
             if st.button("\U0001F4C4 Generate PDF", key="pdf"):
                 pdf = FPDF()
@@ -215,7 +191,6 @@ class InteractiveChatApp:
                 pdf.output(pdf_buffer)
                 pdf_buffer.seek(0)
                 st.download_button("Download PDF", pdf_buffer, file_name="response.pdf", mime="application/pdf")
-
         with col3:
             if st.button("\U0001F4C4 Generate DOCX", key="docx"):
                 doc = Document()
@@ -226,9 +201,6 @@ class InteractiveChatApp:
                 st.download_button("Download DOCX", doc_buffer, file_name="response.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
     def run(self):
-        """
-        Streamlit application for interactive chat and comprehensive report generation.
-        """
         st.title("Interactive Chat with Report Export \U0001F4DC")
         st.write("Ask a question or provide input for a response.")
         
@@ -246,10 +218,8 @@ class InteractiveChatApp:
 # ------------------------------ Main Entry Point ------------------------------ #
 if __name__ == "__main__":
     st.set_page_config(page_title="Defect Detection and LLM Chat App", layout="wide")
-
     st.sidebar.title("Application Selection")
     app_selection = st.sidebar.selectbox("Choose an Application:", ["Engine Inspection", "Interactive Chat"])
-
     if app_selection == "Engine Inspection":
         engine_app = EngineInspectionApp()
         engine_app.run()
