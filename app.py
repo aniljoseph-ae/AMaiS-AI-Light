@@ -31,6 +31,13 @@ from ultralytics import YOLO
 import streamlit as st
 from langchain_groq import ChatGroq
 
+
+# ✅ Set Page Config **at the very beginning**
+st.set_page_config(
+    page_title="Defect Detection and LLM Chat App",
+    page_icon="🔧",
+    layout="wide"
+)
 #---------------MODIFICATION : TESTING-----------------------------------------#
 class EngineInspectionApp:
     """
