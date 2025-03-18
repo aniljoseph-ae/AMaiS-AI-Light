@@ -63,7 +63,7 @@ class EngineInspectionApp:
         )
 
     def preprocess_image(uploaded_file):
-    """Preprocess image: Convert to RGB if needed and resize."""
+        """Preprocess image: Convert to RGB if needed and resize."""
         image = Image.open(uploaded_file)
     
         # ✅ Convert image to RGB (remove alpha channel if present)
