@@ -62,26 +62,26 @@ class EngineInspectionApp:
             groq_api_key=st.secrets["groq"]["api_key"]
         )
 
-    def preprocess_image(self, image):
-        """
-        Preprocess the image to fit the YOLO model input dimensions (640x640).
-        """
-        if isinstance(image, Image.Image):
-            image = np.array(image)
+    def preprocess_image(uploaded_file):
+    """Preprocess image: Convert to RGB if needed and resize."""
+    image = Image.open(uploaded_file)
 
-        h, w = image.shape[:2]
-        aspect_ratio = w / h
-        if w > h:
-            new_w, new_h = 640, int(640 / aspect_ratio)
-        else:
-            new_w, new_h = int(640 * aspect_ratio), 640
+    # ✅ Convert image to RGB (remove alpha channel if present)
+    image = image.convert("RGB")
 
-        resized = cv2.resize(image, (new_w, new_h))
-        canvas = np.zeros((640, 640, 3), dtype=np.uint8)
-        x_offset, y_offset = (640 - new_w) // 2, (640 - new_h) // 2
-        canvas[y_offset:y_offset + new_h, x_offset:x_offset + new_w] = resized
+    image = np.array(image)  # Convert to NumPy array
+    h, w = image.shape[:2]
+    aspect_ratio = w / h
 
-        return canvas
+    if w > h:
+        new_w, new_h = 640, int(640 / aspect_ratio)
+    else:
+        new_w, new_h = int(640 * aspect_ratio), 640
+
+    # ✅ Ensure image is correctly resized
+    image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+    return image
 
     def detect_defects(self, image):
         """
