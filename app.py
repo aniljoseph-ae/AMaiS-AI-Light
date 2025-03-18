@@ -6,7 +6,7 @@ import cv2
 from PIL import Image
 from ultralytics import YOLO
 from langchain_community.vectorstores import FAISS
-from langchain.docstore import InMemoryDocstore
+from langchain_community.docstore.in_memory import InMemoryDocstore  # Updated import
 from faiss import IndexFlatL2
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -15,6 +15,7 @@ from langchain_groq import ChatGroq
 import streamlit as st
 from io import BytesIO
 from docx import Document
+import torch.serialization  # Added for safe globals
 
 # ------------------------------ App 1: Engine Inspection Class ------------------------------ #
 class EngineInspectionApp:
@@ -27,6 +28,9 @@ class EngineInspectionApp:
         # Initialize YOLO model for defect detection
         self.model_path = 'yolov8n_model/best.pt'  # Path to YOLO model weights
         if os.path.exists(self.model_path):
+            # Add DetectionModel to safe globals to avoid UnpicklingError
+            from ultralytics.nn.tasks import DetectionModel
+            torch.serialization.add_safe_globals([DetectionModel])
             self.model = YOLO(self.model_path)
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
