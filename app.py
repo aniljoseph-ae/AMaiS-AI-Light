@@ -2,7 +2,6 @@ import os
 from fpdf import FPDF
 from gtts import gTTS
 import numpy as np
-import pickle
 import cv2
 from PIL import Image
 from ultralytics import YOLO
@@ -15,6 +14,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 import streamlit as st
 from io import BytesIO
+from docx import Document
 
 # ------------------------------ App 1: Engine Inspection Class ------------------------------ #
 class EngineInspectionApp:
@@ -30,17 +30,30 @@ class EngineInspectionApp:
             self.model = YOLO(self.model_path)
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
+            self.model = None
 
         # Initialize Groq LLM (Llama model)
-        self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
+        try:
+            self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
+        except KeyError:
+            st.error("Groq API key not found in Streamlit secrets. Please configure it in secrets.toml.")
+            self.groq_client = None
 
     def preprocess_image(self, image):
         """
         Preprocess the image to fit the YOLO model input dimensions (640x640).
         """
+        # If image is a PIL Image, convert to NumPy array
         if isinstance(image, Image.Image):
             image = np.array(image)
 
+        # Ensure image is in RGB format (YOLO expects 3 channels)
+        if image.shape[-1] == 4:  # If RGBA, convert to RGB
+            image = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+        elif len(image.shape) == 2:  # If grayscale, convert to RGB
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
+        # Resize while preserving aspect ratio
         h, w = image.shape[:2]
         aspect_ratio = w / h
         if w > h:
@@ -59,6 +72,9 @@ class EngineInspectionApp:
         """
         Detect defects using YOLO and return an annotated image and list of detected defects.
         """
+        if self.model is None:
+            return image, []
+        
         try:
             results = self.model(image)
             annotated_image = np.copy(image)
@@ -85,6 +101,9 @@ class EngineInspectionApp:
         """
         Generate an activation report for detected defects using Groq LLM.
         """
+        if self.groq_client is None:
+            return "Error: Groq LLM not initialized due to missing API key."
+        
         try:
             defect_list = ', '.join([label for label, _ in defects])
             prompt = (
@@ -93,7 +112,8 @@ class EngineInspectionApp:
                 "2. Maintenance procedures.\n3. Inspection steps.\n4. Possible causes.\n"
                 "5. Safety warnings and precautions."
             )
-            return self.groq_client.predict(prompt)
+            response = self.groq_client.invoke(prompt)
+            return response.content  # Extract content from the response object
         except Exception as e:
             st.error(f"Error in report generation: {str(e)}")
             return "Error generating the report."
@@ -105,9 +125,11 @@ class EngineInspectionApp:
         st.title("Engine Component Inspection System \U0001F527")
         uploaded_file = st.file_uploader("Upload an image (jpg/png):", type=["jpg", "png", "jpeg"])
         if uploaded_file:
+            # Open the uploaded file as a PIL Image
             image = Image.open(uploaded_file)
             st.image(image, caption="Uploaded Image", use_column_width=True)
 
+            # Preprocess the image
             preprocessed_image = self.preprocess_image(image)
             annotated_image, defects = self.detect_defects(preprocessed_image)
 
@@ -123,7 +145,6 @@ class EngineInspectionApp:
                     st.write(report)
 
 # ------------------------------ App 2: Interactive Chat Class ------------------------------ #
-
 class InteractiveChatApp:
     def __init__(self):
         self.vectorstore = self.setup_vectorstore()
@@ -174,16 +195,19 @@ class InteractiveChatApp:
                 pdf.add_page()
                 pdf.set_font("Arial", size=12)
                 pdf.multi_cell(0, 10, response)
-                pdf.output("response.pdf")
-                st.download_button("Download PDF", "response.pdf")
+                pdf_buffer = BytesIO()
+                pdf.output(pdf_buffer)
+                pdf_buffer.seek(0)
+                st.download_button("Download PDF", pdf_buffer, file_name="response.pdf", mime="application/pdf")
 
         with col3:
             if st.button("\U0001F4C4 Generate DOCX"):
-                from docx import Document
                 doc = Document()
                 doc.add_paragraph(response)
-                doc.save("response.docx")
-                st.download_button("Download DOCX", "response.docx")
+                doc_buffer = BytesIO()
+                doc.save(doc_buffer)
+                doc_buffer.seek(0)
+                st.download_button("Download DOCX", doc_buffer, file_name="response.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
     def run(self):
         """
@@ -192,11 +216,13 @@ class InteractiveChatApp:
         st.title("Interactive Chat with Report Export \U0001F4DC")
         user_input = st.text_area("Enter your query:")
         if user_input:
-            response = self.chain.run(question=user_input)
-            st.subheader("Response:")
-            st.write(response)
-            self.export_response(response)
-
+            if self.chain:
+                response = self.chain.run(question=user_input)
+                st.subheader("Response:")
+                st.write(response)
+                self.export_response(response)
+            else:
+                st.error("Chat chain not initialized properly. Check setup.")
 
 # ------------------------------ Main Entry Point ------------------------------ #
 if __name__ == "__main__":
