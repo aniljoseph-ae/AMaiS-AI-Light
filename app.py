@@ -7,7 +7,9 @@ import cv2
 from PIL import Image
 from ultralytics import YOLO
 from langchain_community.vectorstores import FAISS
-from langchain.docstore import InMemoryDocstore
+# from langchain.docstore import InMemoryDocstore
+from langchain_community.docstore.in_memory import InMemoryDocstore
+
 from faiss import IndexFlatL2
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
