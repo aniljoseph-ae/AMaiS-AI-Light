@@ -139,7 +139,7 @@ class EngineInspectionApp:
         Streamlit application to upload an image, detect defects, and generate a comprehensive report.
         """
         st.title("Engine Component Inspection System 🔧")
-        uploaded_file = st.file_uploader("Upload an image (jpg/png):", type=["jpg", "png", "jpeg"])
+        uploaded_file = st.file_uploader("Upload an image (jpg/png):", type=["jpg", "png", "jpeg", "png"])
 
         if uploaded_file:
             image = Image.open(uploaded_file)
