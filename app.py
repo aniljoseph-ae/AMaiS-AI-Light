@@ -32,15 +32,22 @@ class EngineInspectionApp:
     def __init__(self):
         # Initialize YOLO model for defect detection
 #---------------------------------------------------------------------------------------------#
-        # self.model_path = './yolov8n_model/best.pt'  # Path to YOLO model weights
+        self.model_path = os.path.abspath("./yolov8n_model/best.pt")  # Path to YOLO model weights
         torch.serialization.add_safe_globals([DetectionModel])
         self.model = torch.load(self.model_path, map_location="cpu")
         self.model.eval()
 #---------------------------------------------------------------------------------------------#
+        # if os.path.exists(self.model_path):
+        #     self.model = YOLO(self.model_path)
+        # else:
+        #     st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
+#---------------------------------------------------------------------------------------------#
         if os.path.exists(self.model_path):
-            self.model = YOLO(self.model_path)
+            self.model = torch.load(self.model_path, map_location="cpu")
+            self.model.eval()
         else:
-            st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
+            raise FileNotFoundError(f"Model file not found at {self.model_path}")
+#---------------------------------------------------------------------------------------------#        
 
         # Initialize Groq LLM (Llama model)
         self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
