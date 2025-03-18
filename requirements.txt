@@ -6,7 +6,7 @@ streamlit==1.38.0
 opencv-python-headless==4.8.1.78
 numpy>=1.24.0
 Pillow==10.0.0
-ultralytics>=8.2.0  # Updated for potential model compatibility
+ultralytics>=8.2.0
 chromadb==0.4.22
 sentence-transformers>=2.6.0
 faiss-cpu==1.9.0.post1
