@@ -21,7 +21,147 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 import streamlit as st
 from io import BytesIO
+# NEW MODIFICATION FOR TEST
+import os
+import numpy as np
+import torch
+import cv2
+from PIL import Image
+from ultralytics import YOLO
+import streamlit as st
+from langchain_groq import ChatGroq
 
+#---------------MODIFICATION : TESTING-----------------------------------------#
+class EngineInspectionApp:
+    """
+    EngineInspectionApp performs defect detection on gas turbine blades using YOLOv8.
+    It also generates a detailed inspection report for identified defects using the Groq LLM.
+    """
+
+    def __init__(self):
+        """
+        Initialize YOLO model for defect detection.
+        """
+        self.model_path = os.path.abspath("./yolov8n_model/best.pt")  # Path to YOLO model weights
+
+        if os.path.exists(self.model_path):
+            try:
+                # Load YOLO model using the Ultralytics library
+                self.model = YOLO(self.model_path)
+            except Exception as e:
+                st.error(f"Error loading YOLO model: {str(e)}")
+                self.model = None
+        else:
+            st.error(f"Model file not found at {self.model_path}")
+            self.model = None
+
+        # Initialize Groq LLM (Llama model)
+        self.groq_client = ChatGroq(
+            model="llama3-70b-8192",
+            temperature=0,
+            groq_api_key=st.secrets["groq"]["api_key"]
+        )
+
+    def preprocess_image(self, image):
+        """
+        Preprocess the image to fit the YOLO model input dimensions (640x640).
+        """
+        if isinstance(image, Image.Image):
+            image = np.array(image)
+
+        h, w = image.shape[:2]
+        aspect_ratio = w / h
+        if w > h:
+            new_w, new_h = 640, int(640 / aspect_ratio)
+        else:
+            new_w, new_h = int(640 * aspect_ratio), 640
+
+        resized = cv2.resize(image, (new_w, new_h))
+        canvas = np.zeros((640, 640, 3), dtype=np.uint8)
+        x_offset, y_offset = (640 - new_w) // 2, (640 - new_h) // 2
+        canvas[y_offset:y_offset + new_h, x_offset:x_offset + new_w] = resized
+
+        return canvas
+
+    def detect_defects(self, image):
+        """
+        Detect defects using YOLO and return an annotated image and list of detected defects.
+        """
+        if self.model is None:
+            st.error("YOLO model not loaded.")
+            return image, []
+
+        try:
+            results = self.model(image)
+            annotated_image = np.copy(image)
+            labels = []
+
+            for result in results:
+                boxes = result.boxes
+                for box in boxes:
+                    cls = int(box.cls[0])
+                    conf = float(box.conf[0])
+                    label = f"{self.model.names[cls]} {conf:.2f}"
+                    labels.append((self.model.names[cls], conf))
+
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    cv2.rectangle(annotated_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(annotated_image, label, (x1, y1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+            return annotated_image, labels
+        except Exception as e:
+            st.error(f"Error in defect detection: {str(e)}")
+            return image, []
+
+    def generate_report(self, defects):
+        """
+        Generate an activation report for detected defects using Groq LLM.
+        """
+        if not defects:
+            return "No defects detected."
+
+        try:
+            defect_list = ', '.join([label for label, _ in defects])
+            prompt = (
+                f"Generate an activation report for the following defects in gas turbine blades: {defect_list}. "
+                "Include:\n1. Definitions and descriptions of each defect.\n"
+                "2. Maintenance procedures.\n3. Inspection steps.\n4. Possible causes.\n"
+                "5. Safety warnings and precautions."
+            )
+            return self.groq_client.predict(prompt)
+        except Exception as e:
+            st.error(f"Error in report generation: {str(e)}")
+            return "Error generating the report."
+
+    def run(self):
+        """
+        Streamlit application to upload an image, detect defects, and generate a comprehensive report.
+        """
+        st.title("Engine Component Inspection System 🔧")
+        uploaded_file = st.file_uploader("Upload an image (jpg/png):", type=["jpg", "png", "jpeg"])
+
+        if uploaded_file:
+            image = Image.open(uploaded_file)
+            st.image(image, caption="Uploaded Image", use_column_width=True)
+
+            preprocessed_image = self.preprocess_image(image)
+            annotated_image, defects = self.detect_defects(preprocessed_image)
+
+            st.image(annotated_image, caption="Detected Defects", use_column_width=True)
+            st.write("### Detected Defects:")
+            for label, conf in defects:
+                st.write(f"- {label} (Confidence: {conf:.2%})")
+
+            if st.button("Generate Activation Report"):
+                with st.spinner("Generating report..."):
+                    report = self.generate_report(defects)
+                    st.write(report)
+
+#----------------------------------------------------------------------------------------------#
+
+
+'''
 # ------------------------------ App 1: Engine Inspection Class ------------------------------ #
 class EngineInspectionApp:
     """
@@ -34,7 +174,7 @@ class EngineInspectionApp:
 #---------------------------------------------------------------------------------------------#
         self.model_path = os.path.abspath("./yolov8n_model/best.pt")  # Path to YOLO model weights
         torch.serialization.add_safe_globals([DetectionModel])
-        self.model = torch.load(self.model_path, map_location="cpu")
+        self.model = torch.load(self.model_path, map_location="cpu", weights_only=False)
         self.model.eval()
 #---------------------------------------------------------------------------------------------#
         # if os.path.exists(self.model_path):
@@ -139,7 +279,7 @@ class EngineInspectionApp:
                     report = self.generate_report(defects)
                     st.subheader("Activation Report")
                     st.write(report)
-
+'''
 # ------------------------------ App 2: Interactive Chat Class ------------------------------ #
 
 class InteractiveChatApp:
