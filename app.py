@@ -25,7 +25,7 @@ class EngineInspectionApp:
 
     def __init__(self):
         # Initialize YOLO model for defect detection
-        self.model_path = 'yolov8n_model/best.pt'  # Path to YOLO model weights
+        self.model_path = './yolov8n_model/best.pt'  # Path to YOLO model weights
         if os.path.exists(self.model_path):
             self.model = YOLO(self.model_path)
         else:
