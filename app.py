@@ -56,41 +56,33 @@ class EngineInspectionApp:
             self.model = None
 
         # Initialize Groq LLM (Llama model)
-        self.groq_client = ChatGroq(
-            model="llama3-70b-8192",
-            temperature=0,
-            groq_api_key=st.secrets["groq"]["api_key"]
-        )
+        self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
 
-    def preprocess_image(self, uploaded_file):
-        """Preprocess image: Convert to RGB if needed and resize."""
-        image = Image.open(uploaded_file)
+    def preprocess_image(self, image):
+        """
+        Preprocess the image to fit the YOLO model input dimensions (640x640).
+        """
+        if isinstance(image, Image.Image):
+            image = np.array(image)
 
-        # ✅ Convert image to RGB (remove alpha channel if present)
-        image = image.convert("RGB")
-
-        image = np.array(image)  # Convert to NumPy array
         h, w = image.shape[:2]
         aspect_ratio = w / h
-
         if w > h:
             new_w, new_h = 640, int(640 / aspect_ratio)
         else:
             new_w, new_h = int(640 * aspect_ratio), 640
 
-        # ✅ Ensure image is correctly resized
-        image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        resized = cv2.resize(image, (new_w, new_h))
+        canvas = np.zeros((640, 640, 3), dtype=np.uint8)
+        x_offset, y_offset = (640 - new_w) // 2, (640 - new_h) // 2
+        canvas[y_offset:y_offset + new_h, x_offset:x_offset + new_w] = resized
 
-        return image
+        return canvas
 
     def detect_defects(self, image):
         """
         Detect defects using YOLO and return an annotated image and list of detected defects.
         """
-        if self.model is None:
-            st.error("YOLO model not loaded.")
-            return image, []
-
         try:
             results = self.model(image)
             annotated_image = np.copy(image)
@@ -106,8 +98,7 @@ class EngineInspectionApp:
 
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     cv2.rectangle(annotated_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(annotated_image, label, (x1, y1 - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    cv2.putText(annotated_image, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             return annotated_image, labels
         except Exception as e:
@@ -118,9 +109,6 @@ class EngineInspectionApp:
         """
         Generate an activation report for detected defects using Groq LLM.
         """
-        if not defects:
-            return "No defects detected."
-
         try:
             defect_list = ', '.join([label for label, _ in defects])
             prompt = (
@@ -138,9 +126,8 @@ class EngineInspectionApp:
         """
         Streamlit application to upload an image, detect defects, and generate a comprehensive report.
         """
-        st.title("Engine Component Inspection System 🔧")
-        uploaded_file = st.file_uploader("Upload an image (jpg/png):", type=["jpg", "png", "jpeg", "png"])
-
+        st.title("Engine Component Inspection System \U0001F527")
+        uploaded_file = st.file_uploader("Upload an image (jpg/png):", type=["jpg", "png", "jpeg"])
         if uploaded_file:
             image = Image.open(uploaded_file)
             st.image(image, caption="Uploaded Image", use_column_width=True)
@@ -156,7 +143,9 @@ class EngineInspectionApp:
             if st.button("Generate Activation Report"):
                 with st.spinner("Generating report..."):
                     report = self.generate_report(defects)
+                    st.subheader("Activation Report")
                     st.write(report)
+
 
 #----------------------------------------------------------------------------------------------#
 
