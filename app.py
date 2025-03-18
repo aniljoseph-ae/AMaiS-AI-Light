@@ -6,14 +6,8 @@ import pickle
 import cv2
 from PIL import Image
 from ultralytics import YOLO
-#------------------------------------------------#
-import torch
-from ultralytics.nn.tasks import DetectionModel
-#------------------------------------------------#
 from langchain_community.vectorstores import FAISS
-# from langchain.docstore import InMemoryDocstore
-from langchain_community.docstore.in_memory import InMemoryDocstore
-
+from langchain.docstore import InMemoryDocstore
 from faiss import IndexFlatL2
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -21,17 +15,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 import streamlit as st
 from io import BytesIO
-# NEW MODIFICATION FOR TEST
-import os
-import numpy as np
-import torch
-import cv2
-from PIL import Image
-from ultralytics import YOLO
-import streamlit as st
-from langchain_groq import ChatGroq
 
-#---------------MODIFICATION : TESTING-----------------------------------------#
+# ------------------------------ App 1: Engine Inspection Class ------------------------------ #
 class EngineInspectionApp:
     """
     EngineInspectionApp performs defect detection on gas turbine blades using YOLOv8.
@@ -39,21 +24,12 @@ class EngineInspectionApp:
     """
 
     def __init__(self):
-        """
-        Initialize YOLO model for defect detection.
-        """
-        self.model_path = os.path.abspath("./yolov8n_model/best.pt")  # Path to YOLO model weights
-
+        # Initialize YOLO model for defect detection
+        self.model_path = 'yolov8n_model/best.pt'  # Path to YOLO model weights
         if os.path.exists(self.model_path):
-            try:
-                # Load YOLO model using the Ultralytics library
-                self.model = YOLO(self.model_path)
-            except Exception as e:
-                st.error(f"Error loading YOLO model: {str(e)}")
-                self.model = None
+            self.model = YOLO(self.model_path)
         else:
-            st.error(f"Model file not found at {self.model_path}")
-            self.model = None
+            st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
 
         # Initialize Groq LLM (Llama model)
         self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
@@ -145,10 +121,6 @@ class EngineInspectionApp:
                     report = self.generate_report(defects)
                     st.subheader("Activation Report")
                     st.write(report)
-
-
-#----------------------------------------------------------------------------------------------#
-
 
 # ------------------------------ App 2: Interactive Chat Class ------------------------------ #
 
