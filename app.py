@@ -64,24 +64,24 @@ class EngineInspectionApp:
 
     def preprocess_image(uploaded_file):
     """Preprocess image: Convert to RGB if needed and resize."""
-    image = Image.open(uploaded_file)
-
-    # ✅ Convert image to RGB (remove alpha channel if present)
-    image = image.convert("RGB")
-
-    image = np.array(image)  # Convert to NumPy array
-    h, w = image.shape[:2]
-    aspect_ratio = w / h
-
-    if w > h:
-        new_w, new_h = 640, int(640 / aspect_ratio)
-    else:
-        new_w, new_h = int(640 * aspect_ratio), 640
-
-    # ✅ Ensure image is correctly resized
-    image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
-
-    return image
+        image = Image.open(uploaded_file)
+    
+        # ✅ Convert image to RGB (remove alpha channel if present)
+        image = image.convert("RGB")
+    
+        image = np.array(image)  # Convert to NumPy array
+        h, w = image.shape[:2]
+        aspect_ratio = w / h
+    
+        if w > h:
+            new_w, new_h = 640, int(640 / aspect_ratio)
+        else:
+            new_w, new_h = int(640 * aspect_ratio), 640
+    
+        # ✅ Ensure image is correctly resized
+        image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    
+        return image
 
     def detect_defects(self, image):
         """
