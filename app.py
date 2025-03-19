@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class EngineInspectionApp:
     def __init__(self):
         logger.info("Initializing EngineInspectionApp")
-        self.model_path = r'yolov8n_model\best.pt'  # Update to your model file
+        self.model_path = './yolov8n_model/best.pt'  # Update to your model file
         if not os.path.exists(self.model_path):
             st.error(f"YOLO model weights not found at '{self.model_path}'.")
             self.model = None
