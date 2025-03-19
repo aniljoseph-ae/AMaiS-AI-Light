@@ -17,6 +17,10 @@ from langchain_groq import ChatGroq
 import streamlit as st
 from io import BytesIO
 
+import os
+os.environ["OPENCV_DONT_USE_GPU"] = "1"
+
+
 # ------------------------------ App 1: Engine Inspection Class ------------------------------ #
 class EngineInspectionApp:
     """
