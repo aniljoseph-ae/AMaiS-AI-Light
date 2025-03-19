@@ -3,8 +3,8 @@ from fpdf import FPDF
 from gtts import gTTS
 import numpy as np
 import pickle
-import cv2
-# import cv2.headless
+# import cv2
+import cv2.headless
 from PIL import Image
 from ultralytics import YOLO
 from langchain_community.vectorstores import FAISS
