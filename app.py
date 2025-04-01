@@ -6,14 +6,29 @@ import cv2
 from PIL import Image
 from ultralytics import YOLO
 from langchain_community.vectorstores import FAISS
-from langchain_community.docstore.in_memory import InMemoryDocstore  # Updated import
+from langchain_community.docstore.in_memory import InMemoryDocstore
 from faiss import IndexFlatL2
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
+from langchain_core.caches import BaseCache  # Added to define BaseCache
 import streamlit as st
 from io import BytesIO
+
+# Define a simple in-memory cache to satisfy BaseCache requirement
+class SimpleInMemoryCache(BaseCache):
+    def __init__(self):
+        self.cache = {}
+
+    def lookup(self, prompt, llm_string):
+        return self.cache.get((prompt, llm_string), None)
+
+    def update(self, prompt, llm_string, value):
+        self.cache[(prompt, llm_string)] = value
+
+    def clear(self):
+        self.cache.clear()
 
 os.environ["OPENCV_DONT_USE_GPU"] = "1"
 
@@ -27,14 +42,21 @@ class EngineInspectionApp:
 
     def __init__(self):
         # Initialize YOLO model for defect detection
-        self.model_path = './yolov8n_model/best.pt'  # Path to YOLO model weights
+        self.model_path = './yolov8n_model/best.pt'
         if os.path.exists(self.model_path):
             self.model = YOLO(self.model_path)
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
 
-        # Initialize Groq LLM (Llama model) with error handling
+        # Initialize Groq LLM with explicit cache and rebuild
         try:
+            # Set a global cache to satisfy Pydantic
+            from langchain_core.globals import set_llm_cache
+            set_llm_cache(SimpleInMemoryCache())
+
+            # Rebuild the model to ensure Pydantic definitions are complete
+            ChatGroq.model_rebuild()
+
             self.groq_client = ChatGroq(
                 model="llama3-70b-8192",
                 temperature=0,
@@ -96,7 +118,7 @@ class EngineInspectionApp:
         Generate an activation report for detected defects using Groq LLM.
         """
         if self.groq_client is None:
-            return "Error: Groq LLM not initialized."
+            return "Error: Groq LLM not initialized. Cannot generate report."
         
         try:
             defect_list = ', '.join([label for label, _ in defects])
