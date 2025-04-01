@@ -2,7 +2,6 @@ import os
 from fpdf import FPDF
 from gtts import gTTS
 import numpy as np
-import pickle
 import cv2
 from PIL import Image
 from ultralytics import YOLO
@@ -13,7 +12,6 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from langchain_core.caches import BaseCache  # Added for ChatGroq rebuild
 import streamlit as st
 from io import BytesIO
 
@@ -27,7 +25,7 @@ class EngineInspectionApp:
     It also generates a detailed inspection report for identified defects using the Groq LLM.
     """
 
-    def __init__(self):  # Fixed typo: _init_ -> __init__
+    def __init__(self):
         # Initialize YOLO model for defect detection
         self.model_path = './yolov8n_model/best.pt'  # Path to YOLO model weights
         if os.path.exists(self.model_path):
@@ -35,11 +33,16 @@ class EngineInspectionApp:
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
 
-        # Explicitly rebuild ChatGroq model to resolve Pydantic error
-        ChatGroq.model_rebuild()
-
-        # Initialize Groq LLM (Llama model)
-        self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
+        # Initialize Groq LLM (Llama model) with error handling
+        try:
+            self.groq_client = ChatGroq(
+                model="llama3-70b-8192",
+                temperature=0,
+                groq_api_key=st.secrets["groq"]["api_key"]
+            )
+        except Exception as e:
+            st.error(f"Failed to initialize Groq LLM: {str(e)}")
+            self.groq_client = None
 
     def preprocess_image(self, image):
         """
@@ -92,6 +95,9 @@ class EngineInspectionApp:
         """
         Generate an activation report for detected defects using Groq LLM.
         """
+        if self.groq_client is None:
+            return "Error: Groq LLM not initialized."
+        
         try:
             defect_list = ', '.join([label for label, _ in defects])
             prompt = (
@@ -133,7 +139,7 @@ class EngineInspectionApp:
 # ------------------------------ App 2: Interactive Chat Class ------------------------------ #
 
 class InteractiveChatApp:
-    def __init__(self):  # Fixed typo: _init_ -> __init__
+    def __init__(self):
         self.vectorstore = self.setup_vectorstore()
         self.chain = self.create_chain()
 
@@ -156,8 +162,6 @@ class InteractiveChatApp:
     def create_chain(self):
         try:
             groq_api_key = st.secrets["groq"]["api_key"]
-            # Rebuild ChatGroq model
-            ChatGroq.model_rebuild()
             llm = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=groq_api_key)
             retriever = self.vectorstore.as_retriever()
             memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
@@ -209,7 +213,7 @@ class InteractiveChatApp:
 
 
 # ------------------------------ Main Entry Point ------------------------------ #
-if __name__ == "__main__":  # Fixed typo: _name_ -> __name__
+if __name__ == "__main__":
     st.set_page_config(page_title="Defect Detection and LLM Chat App", layout="wide")
 
     app_selection = st.sidebar.selectbox("Choose an Application:", ["Engine Inspection", "Interactive Chat"])
