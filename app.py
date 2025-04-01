@@ -6,7 +6,7 @@ import cv2
 from PIL import Image
 from ultralytics import YOLO
 from langchain_community.vectorstores import FAISS
-from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain_community.docstore.in_memory import InMemoryDocstore  # Updated import
 from faiss import IndexFlatL2
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -27,13 +27,13 @@ class EngineInspectionApp:
 
     def __init__(self):
         # Initialize YOLO model for defect detection
-        self.model_path = './yolov8n_model/best.pt'
+        self.model_path = './yolov8n_model/best.pt'  # Path to YOLO model weights
         if os.path.exists(self.model_path):
             self.model = YOLO(self.model_path)
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
 
-        # Initialize Groq LLM with minimal setup and error handling
+        # Initialize Groq LLM (Llama model) with error handling
         try:
             self.groq_client = ChatGroq(
                 model="llama3-70b-8192",
@@ -46,11 +46,9 @@ class EngineInspectionApp:
 
     def preprocess_image(self, image):
         """
-        Preprocess the image to fit the YOLO model input dimensions (640x640), converting to RGB.
+        Preprocess the image to fit the YOLO model input dimensions (640x640).
         """
         if isinstance(image, Image.Image):
-            # Convert PIL Image to RGB (3 channels) and then to NumPy array
-            image = image.convert("RGB")
             image = np.array(image)
 
         h, w = image.shape[:2]
@@ -98,7 +96,7 @@ class EngineInspectionApp:
         Generate an activation report for detected defects using Groq LLM.
         """
         if self.groq_client is None:
-            return "Error: Groq LLM not initialized. Cannot generate report."
+            return "Error: Groq LLM not initialized."
         
         try:
             defect_list = ', '.join([label for label, _ in defects])
