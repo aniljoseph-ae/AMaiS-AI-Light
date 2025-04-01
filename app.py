@@ -19,6 +19,14 @@ from io import BytesIO
 # Set OpenCV to not use GPU if not available
 os.environ["OPENCV_DONT_USE_GPU"] = "1"
 
+from typing import Any
+
+try:
+    from langchain_core.callbacks import Callbacks
+except ImportError:
+    Callbacks = Any  # Fallback if Callbacks is missing
+
+
 # Ensure BaseCache is properly initialized before usage
 BaseCache._cache = InMemoryCache()
 
