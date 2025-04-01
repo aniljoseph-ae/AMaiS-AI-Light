@@ -7,8 +7,9 @@ import cv2
 from PIL import Image
 from ultralytics import YOLO
 from langchain_community.vectorstores import FAISS
-from langchain.docstore import InMemoryDocstore
 from faiss import IndexFlatL2
+from langchain_community.docstore.in_memory import InMemoryDocstore  # Updated import
+from langchain_core.caches import InMemoryCache, BaseCache  # Import cache-related classes
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -34,10 +35,16 @@ class EngineInspectionApp:
             self.model = YOLO(self.model_path)
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
-
+        
+        # Set up BaseCache
+        BaseCache._cache = InMemoryCache()
+        
         # Initialize Groq LLM (Llama model)
         self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
-
+      
+        # Rebuild the model
+        ChatGroq.model_rebuild()  
+        
     def preprocess_image(self, image):
         """
         Preprocess the image to fit the YOLO model input dimensions (640x640).
@@ -152,7 +159,9 @@ class InteractiveChatApp:
     def create_chain(self):
         try:
             groq_api_key = st.secrets["groq"]["api_key"]
+            BaseCache._cache = InMemoryCache()
             llm = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=groq_api_key)
+            ChatGroq.model_rebuild()
             retriever = self.vectorstore.as_retriever()
             memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
