@@ -12,23 +12,8 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from langchain_core.caches import BaseCache  # Added to define BaseCache
 import streamlit as st
 from io import BytesIO
-
-# Define a simple in-memory cache to satisfy BaseCache requirement
-class SimpleInMemoryCache(BaseCache):
-    def __init__(self):
-        self.cache = {}
-
-    def lookup(self, prompt, llm_string):
-        return self.cache.get((prompt, llm_string), None)
-
-    def update(self, prompt, llm_string, value):
-        self.cache[(prompt, llm_string)] = value
-
-    def clear(self):
-        self.cache.clear()
 
 os.environ["OPENCV_DONT_USE_GPU"] = "1"
 
@@ -48,15 +33,8 @@ class EngineInspectionApp:
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
 
-        # Initialize Groq LLM with explicit cache and rebuild
+        # Initialize Groq LLM with minimal setup and error handling
         try:
-            # Set a global cache to satisfy Pydantic
-            from langchain_core.globals import set_llm_cache
-            set_llm_cache(SimpleInMemoryCache())
-
-            # Rebuild the model to ensure Pydantic definitions are complete
-            ChatGroq.model_rebuild()
-
             self.groq_client = ChatGroq(
                 model="llama3-70b-8192",
                 temperature=0,
@@ -68,9 +46,11 @@ class EngineInspectionApp:
 
     def preprocess_image(self, image):
         """
-        Preprocess the image to fit the YOLO model input dimensions (640x640).
+        Preprocess the image to fit the YOLO model input dimensions (640x640), converting to RGB.
         """
         if isinstance(image, Image.Image):
+            # Convert PIL Image to RGB (3 channels) and then to NumPy array
+            image = image.convert("RGB")
             image = np.array(image)
 
         h, w = image.shape[:2]
