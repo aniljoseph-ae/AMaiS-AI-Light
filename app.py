@@ -20,6 +20,12 @@ from io import BytesIO
 import os
 os.environ["OPENCV_DONT_USE_GPU"] = "1"
 
+# Ensure BaseCache is properly initialized before usage
+BaseCache._cache = InMemoryCache()
+
+# Ensure ChatGroq is correctly rebuilt before use
+ChatGroq.model_rebuild()
+
 
 # ------------------------------ App 1: Engine Inspection Class ------------------------------ #
 class EngineInspectionApp:
