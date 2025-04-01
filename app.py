@@ -2,11 +2,12 @@ import os
 from fpdf import FPDF
 from gtts import gTTS
 import numpy as np
+import pickle
 import cv2
 from PIL import Image
 from ultralytics import YOLO
 from langchain_community.vectorstores import FAISS
-from langchain_community.docstore.in_memory import InMemoryDocstore  # Updated import
+from langchain.docstore import InMemoryDocstore
 from faiss import IndexFlatL2
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -15,6 +16,7 @@ from langchain_groq import ChatGroq
 import streamlit as st
 from io import BytesIO
 
+import os
 os.environ["OPENCV_DONT_USE_GPU"] = "1"
 
 
@@ -33,16 +35,8 @@ class EngineInspectionApp:
         else:
             st.error("YOLO model weights not found. Please ensure the file exists at the specified path.")
 
-        # Initialize Groq LLM (Llama model) with error handling
-        try:
-            self.groq_client = ChatGroq(
-                model="llama3-70b-8192",
-                temperature=0,
-                groq_api_key=st.secrets["groq"]["api_key"]
-            )
-        except Exception as e:
-            st.error(f"Failed to initialize Groq LLM: {str(e)}")
-            self.groq_client = None
+        # Initialize Groq LLM (Llama model)
+        self.groq_client = ChatGroq(model="llama3-70b-8192", temperature=0, groq_api_key=st.secrets["groq"]["api_key"])
 
     def preprocess_image(self, image):
         """
@@ -95,9 +89,6 @@ class EngineInspectionApp:
         """
         Generate an activation report for detected defects using Groq LLM.
         """
-        if self.groq_client is None:
-            return "Error: Groq LLM not initialized."
-        
         try:
             defect_list = ', '.join([label for label, _ in defects])
             prompt = (
@@ -134,7 +125,6 @@ class EngineInspectionApp:
                     report = self.generate_report(defects)
                     st.subheader("Activation Report")
                     st.write(report)
-
 
 # ------------------------------ App 2: Interactive Chat Class ------------------------------ #
 
