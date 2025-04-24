@@ -1,5 +1,17 @@
+---
+title: Aircraft Maintenance System AI (AMaiS AI)
+emoji: ✈
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: "latest"
+app_file: app.py
+pinned: false
+---
+
 
 # **Aircraft Maintenance System AI (AMaiS AI)**
+
 
 ## **Overview**
 AMaiS AI is a comprehensive, AI-driven application designed to assist in aircraft maintenance. By leveraging state-of-the-art technologies such as YOLO for defect detection and advanced large language models (LLMs) for detailed reporting, this system aims to enhance inspection accuracy, streamline report generation, and provide interactive query support.
